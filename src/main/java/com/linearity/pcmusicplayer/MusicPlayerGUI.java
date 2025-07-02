@@ -232,14 +232,14 @@ public class MusicPlayerGUI extends Application implements Observer {
         bp.setLeft(buildSongList());
         return bp;
     }
-    private ListView<File> buildSongList(){
-        ListView<File> listView = new ListView<>();
+    private ListView<SongBean> buildSongList(){
+        ListView<SongBean> listView = new ListView<>();
         listView.setPrefSize(300, 80);
         listView.setItems(this.model.getPlaylist());
         listView.setOnMouseClicked(event -> {
             if (event.getClickCount() >= 2){
-                File selected = listView.getSelectionModel().getSelectedItem();
-                int index = this.model.getPlaylist().indexOf(selected);
+                SongBean selected = listView.getSelectionModel().getSelectedItem();
+                int index = selected.index();
                 this.model.loadSpecificSong(index);
                 boolean wasRunning = false;
                 if (this.model.hasClip() && this.model.isRunning()) {
@@ -247,6 +247,7 @@ public class MusicPlayerGUI extends Application implements Observer {
                     wasRunning = true;
                 }
                 loadSongTitleAndVolume(selected, wasRunning);
+                this.model.start();
             }
         });
         return listView;
@@ -382,7 +383,7 @@ public class MusicPlayerGUI extends Application implements Observer {
             );
             File newSong = songChooser.showOpenDialog(this.stage);
             if (newSong != null) {
-                loadSong(newSong);
+                loadSong(new SongBean(newSong,0));
                 this.model.setPlaylist(Collections.emptyList());
             }
 
@@ -468,14 +469,15 @@ public class MusicPlayerGUI extends Application implements Observer {
     /**
      * Loads a new song. Updates the song slider and volume slider accordingly.
      *
-     * @param songfile song File to load
+     * @param songBean song file and index to load
      */
-    public void loadSong(File songfile) {
+    public void loadSong(SongBean songBean) {
+        File songFile = songBean.songFile();
         if (this.model.hasClip() && this.model.isRunning()) {
             this.model.stop();
         }
-        this.model.changeSong(songfile);
-        this.stage.setTitle(songfile.getName() + " ~ MusicPlayer");
+        this.model.changeSong(songBean);
+        this.stage.setTitle(songFile.getName() + " ~ MusicPlayer");
         int MIN_VOLUME = (int) this.model.getMinVolume();
         int MAX_VOLUME = (int) this.model.getMaxVolume();
         // update volume slider
@@ -515,31 +517,37 @@ public class MusicPlayerGUI extends Application implements Observer {
             this.model.stop();
             wasRunning = true;
         }
-        File song = this.model.loadNextSong();
+        SongBean song = this.model.loadNextSong();
+        this.model.changeSong(song);
         loadSongTitleAndVolume(song, wasRunning);
     }
 
-    private void loadSongTitleAndVolume(File song, boolean wasRunning) {
-        this.stage.setTitle(song.getName() + " ~ MusicPlayer");
-        int MIN_VOLUME = (int) this.model.getMinVolume();
-        int MAX_VOLUME = (int) this.model.getMaxVolume();
-        // update volume slider
-        int half = (MAX_VOLUME + MIN_VOLUME) / 2;
-        this.volumeSlider.setMax(MAX_VOLUME);
-        this.volumeSlider.setMin(half);
-        this.volumeSlider.setValue(getCurrentVolume());
+    private void loadSongTitleAndVolume(SongBean songBean, boolean wasRunning) {
+        if (songBean == null) {
+            this.stage.setTitle("MusicPlayer");
+        }else {
+            File songFile = songBean.songFile();
+            this.stage.setTitle(songFile.getName() + " ~ MusicPlayer");
+            int MIN_VOLUME = (int) this.model.getMinVolume();
+            int MAX_VOLUME = (int) this.model.getMaxVolume();
+            // update volume slider
+            int half = (MAX_VOLUME + MIN_VOLUME) / 2;
+            this.volumeSlider.setMax(MAX_VOLUME);
+            this.volumeSlider.setMin(half);
+            this.volumeSlider.setValue(getCurrentVolume());
 
-        this.model.volumeChange(getCurrentVolume());
-        // update song slider
-        this.songSlider.setMax(this.model.getClipLength());
-        this.songSlider.setMin(0);
-        this.songSlider.setValue(0);
-        // update play/pause button
-        if (wasRunning) {
-            setImage(this.play, "pause.png");
-            this.model.start();
+            this.model.volumeChange(getCurrentVolume());
+            // update song slider
+            this.songSlider.setMax(this.model.getClipLength());
+            this.songSlider.setMin(0);
+            this.songSlider.setValue(0);
+            // update play/pause button
+            if (wasRunning) {
+                setImage(this.play, "pause.png");
+                this.model.start();
+            }
+            this.model.volumeChange(getCurrentVolume());
         }
-        this.model.volumeChange(getCurrentVolume());
     }
 
 
@@ -552,7 +560,7 @@ public class MusicPlayerGUI extends Application implements Observer {
             this.model.stop();
             wasRunning = true;
         }
-        File song = this.model.loadPrevSong();
+        SongBean song = this.model.loadPrevSong();
         loadSongTitleAndVolume(song, wasRunning);
 //        this.stage.setTitle(song.getName() + " ~ MusicPlayer");
 //        int MIN_VOLUME = (int) this.model.getMinVolume();

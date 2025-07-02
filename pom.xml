@@ -47,6 +47,33 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>26.0.2</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>jl</groupId>
+            <artifactId>jl</artifactId>
+            <version>1.0.1</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/libs/jl1.0.1.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>mp3spi</groupId>
+            <artifactId>mp3spi</artifactId>
+            <version>1.9.5</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/libs/mp3spi1.9.5.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>tritonus_share</groupId>
+            <artifactId>tritonus_share</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/libs/tritonus_share.jar</systemPath>
+        </dependency>
     </dependencies>
 
     <build>

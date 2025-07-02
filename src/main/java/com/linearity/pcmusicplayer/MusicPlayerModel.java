@@ -2,6 +2,7 @@ package com.linearity.pcmusicplayer;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import org.jetbrains.annotations.Nullable;
 
 import javax.sound.sampled.*;
 import java.io.File;
@@ -29,7 +30,7 @@ public class MusicPlayerModel extends Observable {
     private AudioInputStream decodedStream;
     private AudioFormat baseFormat;
     private AudioFormat decodeFormat;
-    private final ObservableList<File> playlist = FXCollections.observableArrayList();
+    private final ObservableList<SongBean> playlist = FXCollections.observableArrayList();
     private final AtomicInteger playlistPosition = new AtomicInteger(0);
 
     /********************************************************
@@ -52,9 +53,10 @@ public class MusicPlayerModel extends Observable {
     /**
      * Changes the song loaded onto the clip.
      *
-     * @param songFile file to change to currents song
+     * @param songBean file and index to change to currents song
      */
-    public void changeSong(File songFile) {
+    public void changeSong(SongBean songBean) {
+        File songFile = songBean.songFile();
         try {
             if (this.clip != null) {
                 try {
@@ -93,13 +95,13 @@ public class MusicPlayerModel extends Observable {
      *
      * @return File (.mp3) that was changed to the current song
      */
-    public File loadNextSong() {
+    public SongBean loadNextSong() {
         int currentIndex = this.playlistPosition.incrementAndGet();
         if (currentIndex >= this.playlist.size()) {
             currentIndex = 0;
             this.playlistPosition.set(currentIndex);
         }
-        File song = this.playlist.get(currentIndex);
+        SongBean song = this.playlist.get(currentIndex);
         this.changeSong(song);
         return song;
     }
@@ -109,7 +111,7 @@ public class MusicPlayerModel extends Observable {
      *
      * @return File (.mp3) that was changed to the current song
      */
-    public File loadSpecificSong(int currentIndex) {
+    public SongBean loadSpecificSong(int currentIndex) {
         int playListSize = this.playlist.size();
         while (currentIndex >= this.playlist.size()) {
             currentIndex -= playListSize;
@@ -118,7 +120,7 @@ public class MusicPlayerModel extends Observable {
             currentIndex += playListSize;
         }
         this.playlistPosition.set(currentIndex);
-        File song = this.playlist.get(currentIndex);
+        SongBean song = this.playlist.get(currentIndex);
         this.changeSong(song);
         return song;
     }
@@ -128,14 +130,15 @@ public class MusicPlayerModel extends Observable {
      *
      * @return File (.mp3) that was changed to the current song
      */
-    public File loadPrevSong() {
+    @Nullable
+    public SongBean loadPrevSong() {
         if (this.playlist != null) {
             int currentIndex = this.playlistPosition.decrementAndGet();
             if (currentIndex < 0) {
                 currentIndex = this.playlist.size() - 1;
                 this.playlistPosition.set(currentIndex);
             }
-            File song = this.playlist.get(currentIndex);
+            SongBean song = this.playlist.get(currentIndex);
             this.changeSong(song);
             return song;
         }
@@ -212,11 +215,13 @@ public class MusicPlayerModel extends Observable {
      */
     public void setPlaylist(List<File> playlist) {
         this.playlist.clear();
-        this.playlist.addAll(playlist);
+        for (int i=0;i<playlist.size();i++) {
+            this.playlist.add(new SongBean(playlist.get(i), i));
+        }
         this.playlistPosition.set(0);
     }
 
-    public ObservableList<File> getPlaylist() {
+    public ObservableList<SongBean> getPlaylist() {
         return playlist;
     }
 
@@ -227,7 +232,7 @@ public class MusicPlayerModel extends Observable {
      * @return min decibel volume of the current clip
      */
     public double getMinVolume() {
-//        if (!this.hasClip()) {return 0.;}
+        if (!this.hasClip()) {return 0.;}
         FloatControl gainControl = (FloatControl) this.clip.getControl(FloatControl.Type.MASTER_GAIN);
         return gainControl.getMinimum();
     }
@@ -239,7 +244,7 @@ public class MusicPlayerModel extends Observable {
      * @return max decibel volume of the current clip
      */
     public double getMaxVolume() {
-//        if (!this.hasClip()) {return 1.;}
+        if (!this.hasClip()) {return 1.;}
         FloatControl gainControl = (FloatControl) this.clip.getControl(FloatControl.Type.MASTER_GAIN);
         return gainControl.getMaximum();
     }
