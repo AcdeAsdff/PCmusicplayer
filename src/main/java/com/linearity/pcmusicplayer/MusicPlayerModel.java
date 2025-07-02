@@ -1,10 +1,14 @@
 package com.linearity.pcmusicplayer;
 
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
 import javax.sound.sampled.*;
 import java.io.File;
 import java.util.List;
 import java.util.Observable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Model file of the Model-View-Controller design pattern.
@@ -25,8 +29,8 @@ public class MusicPlayerModel extends Observable {
     private AudioInputStream decodedStream;
     private AudioFormat baseFormat;
     private AudioFormat decodeFormat;
-    private List<File> playlist;
-    private int playlistPosition;
+    private final ObservableList<File> playlist = FXCollections.observableArrayList();
+    private final AtomicInteger playlistPosition = new AtomicInteger(0);
 
     /********************************************************
     *                                                       *
@@ -43,7 +47,6 @@ public class MusicPlayerModel extends Observable {
         this.decodedStream = null;
         this.baseFormat = null;
         this.decodeFormat = null;
-        this.playlist = null;
     }
 
     /**
@@ -91,16 +94,33 @@ public class MusicPlayerModel extends Observable {
      * @return File (.mp3) that was changed to the current song
      */
     public File loadNextSong() {
-        if (this.playlist != null) {
-            this.changeSong(this.playlist.get(this.playlistPosition));
-            File song = this.playlist.get(this.playlistPosition);
-            this.playlistPosition += 1;
-            if (this.playlistPosition >= this.playlist.size()) {
-                this.playlistPosition = 0;
-            }
-            return song;
+        int currentIndex = this.playlistPosition.incrementAndGet();
+        if (currentIndex >= this.playlist.size()) {
+            currentIndex = 0;
+            this.playlistPosition.set(currentIndex);
         }
-        return null;
+        File song = this.playlist.get(currentIndex);
+        this.changeSong(song);
+        return song;
+    }
+
+    /**
+     * Loads the next song in the playlist, if possible.
+     *
+     * @return File (.mp3) that was changed to the current song
+     */
+    public File loadSpecificSong(int currentIndex) {
+        int playListSize = this.playlist.size();
+        while (currentIndex >= this.playlist.size()) {
+            currentIndex -= playListSize;
+        }
+        while (currentIndex < 0) {
+            currentIndex += playListSize;
+        }
+        this.playlistPosition.set(currentIndex);
+        File song = this.playlist.get(currentIndex);
+        this.changeSong(song);
+        return song;
     }
 
     /**
@@ -110,11 +130,12 @@ public class MusicPlayerModel extends Observable {
      */
     public File loadPrevSong() {
         if (this.playlist != null) {
-            this.playlistPosition -= 1;
-            if (this.playlistPosition < 0) {
-                this.playlistPosition = this.playlist.size() - 1;
+            int currentIndex = this.playlistPosition.decrementAndGet();
+            if (currentIndex < 0) {
+                currentIndex = this.playlist.size() - 1;
+                this.playlistPosition.set(currentIndex);
             }
-            File song = this.playlist.get(this.playlistPosition);
+            File song = this.playlist.get(currentIndex);
             this.changeSong(song);
             return song;
         }
@@ -190,8 +211,13 @@ public class MusicPlayerModel extends Observable {
      * @param playlist list of Files to set the new playlist as
      */
     public void setPlaylist(List<File> playlist) {
-        this.playlist = playlist;
-        this.playlistPosition = 0;
+        this.playlist.clear();
+        this.playlist.addAll(playlist);
+        this.playlistPosition.set(0);
+    }
+
+    public ObservableList<File> getPlaylist() {
+        return playlist;
     }
 
     /**

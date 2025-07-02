@@ -3,6 +3,7 @@ package com.linearity.pcmusicplayer;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -17,7 +18,6 @@ import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import javafx.stage.Popup;
 import javafx.geometry.Point2D;
 import javafx.util.Duration;
@@ -27,7 +27,6 @@ import java.io.FileInputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -43,6 +42,7 @@ public class MusicPlayerGUI extends Application implements Observer {
     public static <T> void shuffleArray(T[] array){
         int n = array.length;
         // Loop over array.
+        
         for (int i = 0; i < array.length; i++) {
             // Get a random index of the array past the current index.
             // ... The argument is an exclusive bound.
@@ -199,6 +199,12 @@ public class MusicPlayerGUI extends Application implements Observer {
                 executeFile(defaultList,actuallyPlaylist);
                 File[] files = actuallyPlaylist.toArray(new File[0]);
                 shuffleArray(files);
+                int counter = 0;
+                for (File f:files){
+                    System.out.printf(counter+".");
+                    System.out.println(f.getName());
+                    counter += 1;
+                }
                 this.model.setPlaylist(List.of(files));
                 loadPlaylistSong();
             }
@@ -223,7 +229,27 @@ public class MusicPlayerGUI extends Application implements Observer {
         bp.setRight(buildVolumeSlider());
         bp.setTop(buildMenuBar());
         bp.setBottom(buildSongSlider());
+        bp.setLeft(buildSongList());
         return bp;
+    }
+    private ListView<File> buildSongList(){
+        ListView<File> listView = new ListView<>();
+        listView.setPrefSize(300, 80);
+        listView.setItems(this.model.getPlaylist());
+        listView.setOnMouseClicked(event -> {
+            if (event.getClickCount() >= 2){
+                File selected = listView.getSelectionModel().getSelectedItem();
+                int index = this.model.getPlaylist().indexOf(selected);
+                this.model.loadSpecificSong(index);
+                boolean wasRunning = false;
+                if (this.model.hasClip() && this.model.isRunning()) {
+                    this.model.stop();
+                    wasRunning = true;
+                }
+                loadSongTitleAndVolume(selected, wasRunning);
+            }
+        });
+        return listView;
     }
 
     /**
@@ -357,7 +383,7 @@ public class MusicPlayerGUI extends Application implements Observer {
             File newSong = songChooser.showOpenDialog(this.stage);
             if (newSong != null) {
                 loadSong(newSong);
-                this.model.setPlaylist(null);
+                this.model.setPlaylist(Collections.emptyList());
             }
 
         });
@@ -456,14 +482,14 @@ public class MusicPlayerGUI extends Application implements Observer {
         int half = (MAX_VOLUME + MIN_VOLUME)/2;
         this.volumeSlider.setMax(MAX_VOLUME);
         this.volumeSlider.setMin(half);
-        this.volumeSlider.setValue((MAX_VOLUME + half)/2);
+        this.volumeSlider.setValue((MAX_VOLUME + half) /2.);
         // update song slider
         this.songSlider.setMax(this.model.getClipLength());
         this.songSlider.setMin(0);
         this.songSlider.setValue(0);
     }
 
-    private AtomicLong currentVolume = new AtomicLong(Double.doubleToLongBits(Double.NaN));
+    private final AtomicLong currentVolume = new AtomicLong(Double.doubleToLongBits(Double.NaN));
     public double getCurrentVolume() {
         if (Double.isNaN(Double.longBitsToDouble(currentVolume.get()))) {
 
@@ -471,7 +497,7 @@ public class MusicPlayerGUI extends Application implements Observer {
             int MAX_VOLUME = (int) this.model.getMaxVolume();
             int half = (MAX_VOLUME + MIN_VOLUME)/2;
 
-            this.currentVolume.set(Double.doubleToLongBits((MAX_VOLUME + half)/2));
+            this.currentVolume.set(Double.doubleToLongBits((MAX_VOLUME * 0.7 + half * 0.3)));
         }
         return Double.longBitsToDouble(currentVolume.get());
     }
@@ -490,6 +516,10 @@ public class MusicPlayerGUI extends Application implements Observer {
             wasRunning = true;
         }
         File song = this.model.loadNextSong();
+        loadSongTitleAndVolume(song, wasRunning);
+    }
+
+    private void loadSongTitleAndVolume(File song, boolean wasRunning) {
         this.stage.setTitle(song.getName() + " ~ MusicPlayer");
         int MIN_VOLUME = (int) this.model.getMinVolume();
         int MAX_VOLUME = (int) this.model.getMaxVolume();
@@ -512,6 +542,7 @@ public class MusicPlayerGUI extends Application implements Observer {
         this.model.volumeChange(getCurrentVolume());
     }
 
+
     /**
      * Loads the previous song from the playlist. Updates the song slider and volume slider accordingly.
      */
@@ -522,24 +553,26 @@ public class MusicPlayerGUI extends Application implements Observer {
             wasRunning = true;
         }
         File song = this.model.loadPrevSong();
-        this.stage.setTitle(song.getName() + " ~ MusicPlayer");
-        int MIN_VOLUME = (int) this.model.getMinVolume();
-        int MAX_VOLUME = (int) this.model.getMaxVolume();
-        // update volume slider
-        int half = (MAX_VOLUME + MIN_VOLUME) / 2;
-        this.volumeSlider.setMax(MAX_VOLUME);
-        this.volumeSlider.setMin(half);
-        this.volumeSlider.setValue(getCurrentVolume());
-        // update song slider
-        this.songSlider.setMax(this.model.getClipLength());
-        this.songSlider.setMin(0);
-        this.songSlider.setValue(0);
-        // update play/pause button
-        if (wasRunning) {
-            setImage(this.play, "pause.png");
-            this.model.start();
-        }
-        this.model.volumeChange(getCurrentVolume());
+        loadSongTitleAndVolume(song, wasRunning);
+//        this.stage.setTitle(song.getName() + " ~ MusicPlayer");
+//        int MIN_VOLUME = (int) this.model.getMinVolume();
+//        int MAX_VOLUME = (int) this.model.getMaxVolume();
+//        // update volume slider
+//        int half = (MAX_VOLUME + MIN_VOLUME) / 2;
+//        this.volumeSlider.setMax(MAX_VOLUME);
+//        this.volumeSlider.setMin(half);
+//        this.volumeSlider.setValue(getCurrentVolume());
+//        this.model.volumeChange(getCurrentVolume());
+//        // update song slider
+//        this.songSlider.setMax(this.model.getClipLength());
+//        this.songSlider.setMin(0);
+//        this.songSlider.setValue(0);
+//        // update play/pause button
+//        if (wasRunning) {
+//            setImage(this.play, "pause.png");
+//            this.model.start();
+//        }
+//        this.model.volumeChange(getCurrentVolume());
     }
 
     /**
